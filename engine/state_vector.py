@@ -14,7 +14,7 @@ class OrbitStateVector:
         self.right_ascention = self.calculate_right_ascention()
         self.eccentricity = self.calculate_eccentricity()
         self.argument_of_perigee = self.calculate_argument_of_perigee()
-        self.true_anomaly = self.calculate_true_anomaly()
+        # self.true_anomaly = self.calculate_true_anomaly() ----------- error if e = 0 #TODO
 
     def calculate_angular_momentum(self):
         return np.cross(self.radius, self.velocity)
@@ -26,6 +26,9 @@ class OrbitStateVector:
         return np.cross([0, 0, 1], self.angular_momentum)
 
     def calculate_right_ascention(self):
+        if self.node_module == 0:
+            return 0
+
         res = np.arccos(self.node[0] / self.node_module)
         return res if self.node[1] >= 0 else (2 * np.pi - res)
 
@@ -36,11 +39,15 @@ class OrbitStateVector:
         return (1 / self.mu) * (res_r - res_v)
 
     def calculate_argument_of_perigee(self):
+        if self.eccentricity_module == 0 or self.node_module == 0:
+            return 0
         res = np.arccos(self.node @ self.eccentricity /
                         (self.node_module * self.eccentricity_module))
         return res if self.eccentricity[2] >= 0 else (2 * np.pi - res)
 
     def calculate_true_anomaly(self):
+        if (self.eccentricity_module == 0): return 0
+
         res = np.arccos(self.eccentricity @ self.radius /
                         (self.eccentricity_module * self.radius_module))
         return res if self.radial_velocity >= 0 else (2 * np.pi - res)
