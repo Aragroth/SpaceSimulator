@@ -19,5 +19,5 @@ class UniversalTimeSolver:
 
     def state_after(self, seconds: float):
         after_seconds = self.orb.propagate(int(seconds) << u.s)
-
-        return OrbitStateVector(after_seconds.r / u.km, after_seconds.v / u.km * u.s)
+        # return after_seconds
+        return OrbitStateVector(after_seconds.r / u.km, after_seconds.v / u.km * u.s) # TODO change back

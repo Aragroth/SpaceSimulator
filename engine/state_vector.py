@@ -1,6 +1,7 @@
 import numpy as np
 
 
+# Ошибка, где-то не работает # TODO
 class OrbitStateVector:
     def __init__(self, r, v, mu = 398_600):
         self.radius = np.array(r)
@@ -14,7 +15,7 @@ class OrbitStateVector:
         self.right_ascention = self.calculate_right_ascention()
         self.eccentricity = self.calculate_eccentricity()
         self.argument_of_perigee = self.calculate_argument_of_perigee()
-        # self.true_anomaly = self.calculate_true_anomaly() ----------- error if e = 0 #TODO
+        self.true_anomaly = self.calculate_true_anomaly() # ----------- error if e = 0 #TODO
 
     def calculate_angular_momentum(self):
         return np.cross(self.radius, self.velocity)

@@ -64,7 +64,7 @@ point = min(points, key=lambda x: x.total_delta_v)
 
 print(point.points_sequence[0], point.total_delta_v)
 data = point.points_sequence[0]
-
+print(len(point.points_sequence))
 print(
     data.initial_time,
     data.departure_planet,
@@ -126,6 +126,7 @@ start_state, end_state = problem.solution()
 
 t = ax.text(mid_state.radius[0] + 25_000_000 / 4, mid_state.radius[1], mid_state.radius[2],
             f'Маневр (delta-v: {np.linalg.norm(start_state.velocity - mid_state.velocity):.2f} km/s)', zdir=None)
+print("----- norm: ", np.linalg.norm(start_state.velocity - mid_state.velocity))
 t.set_bbox(dict(facecolor='lightcyan', alpha=0.9, edgecolor='grey'))
 
 print(start_state.eccentricity_module)
