@@ -51,6 +51,8 @@ class KspPlanet:
             self.mass = 4.5154270 * 10 ** 21 << u.kg
         elif self.planet == "Jool":
             self.mass = 4.2332127 * 10 ** 24 << u.kg
+        elif self.planet == "Dres":
+            self.mass = 3.2190937 * 10 ** 20 << u.kg
 
 
     def ephemeris_at_time(self, initial_time, delta_time, astropy_planet=False) -> OrbitStateVector:
@@ -77,6 +79,14 @@ class KspPlanet:
             raan = 52 << u.deg
             argp = 0 << u.deg
             nu = self.true_anomaly_from_mean_poliastro(ecc, 0.100 * u.rad) << u.deg
+
+        elif self.planet == "Dres":
+            a = 40839348203 << u.m
+            ecc = 0.145 << u.one
+            inc = 5 << u.deg
+            raan = 280 << u.deg
+            argp = 90 << u.deg
+            nu = self.true_anomaly_from_mean_poliastro(ecc, 3.140 * u.rad) << u.deg
 
         orb = Orbit.from_classical(Kerbol, a, ecc, inc, raan, argp, nu)
         planet_state = orb.propagate((initial_time + delta_time) << u.s)
