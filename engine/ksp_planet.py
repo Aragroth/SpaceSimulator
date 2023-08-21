@@ -3,6 +3,7 @@ from astropy import units as u
 from astropy.constants import Constant
 from astropy.constants.iau2015 import IAU2015
 from astropy.time import Time
+import krpc
 from numpy import random, ndarray
 from poliastro.bodies import Mars, Earth, Venus, Sun, Body
 from poliastro.ephem import Ephem
@@ -53,16 +54,18 @@ class KspPlanet:
             self.mass = 4.2332127 * 10 ** 24 << u.kg
         elif self.planet == "Dres":
             self.mass = 3.2190937 * 10 ** 20 << u.kg
+        elif self.planet == "Eve":
+            self.mass = 1.2243980*10**23 << u.kg
 
 
     def ephemeris_at_time(self, initial_time, delta_time, astropy_planet=False) -> OrbitStateVector:
         if self.planet == "Kerbin":
             a = 13599840256 << u.m
-            ecc = 0 << u.one
+            ecc = 0.0 << u.one
             inc = 0 << u.deg
-            raan = 49.562 << u.deg
+            raan = 0 << u.deg
             argp = 0 << u.deg
-            nu = self.true_anomaly_from_mean_poliastro(ecc, 3.140 * u.rad) << u.deg
+            nu = self.true_anomaly_from_mean_poliastro(ecc, 3.140 << u.rad) << u.deg
 
         elif self.planet == "Duna":
             a = 20726155264 << u.m
@@ -70,7 +73,7 @@ class KspPlanet:
             inc = 0.060 << u.deg
             raan = 135.5 << u.deg
             argp = 0 << u.deg
-            nu = self.true_anomaly_from_mean_poliastro(ecc, 3.140 * u.rad) << u.deg
+            nu = self.true_anomaly_from_mean_poliastro(ecc, 3.140 << u.rad) << u.deg
 
         elif self.planet == "Jool":
             a = 68773560320 << u.m
@@ -78,7 +81,7 @@ class KspPlanet:
             inc = 1.304 << u.deg
             raan = 52 << u.deg
             argp = 0 << u.deg
-            nu = self.true_anomaly_from_mean_poliastro(ecc, 0.100 * u.rad) << u.deg
+            nu = self.true_anomaly_from_mean_poliastro(ecc, 0.100 << u.rad) << u.deg
 
         elif self.planet == "Dres":
             a = 40839348203 << u.m
@@ -86,7 +89,16 @@ class KspPlanet:
             inc = 5 << u.deg
             raan = 280 << u.deg
             argp = 90 << u.deg
-            nu = self.true_anomaly_from_mean_poliastro(ecc, 3.140 * u.rad) << u.deg
+            nu = self.true_anomaly_from_mean_poliastro(ecc, 3.140 << u.rad) << u.deg
+
+        #TODO check this data in ksp
+        elif self.planet == "Eve":
+            a = 9832684544 << u.m
+            ecc = 0.01 << u.one
+            inc = 2.1 << u.deg
+            raan = 15 << u.deg
+            argp = 0 << u.deg
+            nu = self.true_anomaly_from_mean_poliastro(ecc, 3.140 << u.rad) << u.deg
 
         orb = Orbit.from_classical(Kerbol, a, ecc, inc, raan, argp, nu)
         planet_state = orb.propagate((initial_time + delta_time) << u.s)
@@ -101,3 +113,9 @@ class KspPlanet:
             return D_to_nu(M_to_D(M)).to(u.deg)
         else:
             return F_to_nu(M_to_F(M, ecc), ecc).to(u.deg)
+
+if __name__ == '__main__':
+    p = KspPlanet("Dres")
+    print(
+        p.ephemeris_at_time(0, 0).radius
+    )

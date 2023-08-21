@@ -195,6 +195,21 @@ class InitialDomain:
 
         delta_v = (v_p_hyp - np.sqrt(mu / (100 + 600))) + np.linalg.norm(start_state.velocity - mid_state.velocity)
 
+        # ------------------------------------------------ last planet ----------------------------
+        flyby_planet_state = state.arrival_planet.ephemeris_at_time(
+            state.initial_time, state.launch_time + state.flight_period
+        )
+        excess_velocity = end_state.velocity - flyby_planet_state.velocity
+
+        v_p_hyp = np.sqrt(np.linalg.norm(excess_velocity) ** 2 + 2 *
+                          (state.arrival_planet.mass / u.kg * gravitational_constant / 10 ** 9) / (220 + 320))
+
+        delta_v += (v_p_hyp - np.sqrt(
+            (state.arrival_planet.mass / u.kg * gravitational_constant / 10 ** 9) / (220 + 320))) + np.linalg.norm(
+            start_state.velocity - mid_state.velocity)
+
+
+
         if 'last_state_generation' in kwargs and kwargs['last_state_generation']:
             return end_state.velocity, delta_v
         return delta_v
@@ -533,38 +548,56 @@ class ManeuversSequence:
 
 
 n_trials_max = 3
-n_max = 150
+n_max = 30
 
-flight_period_min = 1 * 31 * 6 * 60 * 60
-flight_period_max = 12 * 31 * 6 * 60 * 60
+
+flight_period_min = 2 * 31 * 6 * 60 * 60
+flight_period_max = 9 * 31 * 6 * 60 * 60
 
 starting_domain = InitialDomain(
     0,
     KspPlanet("Kerbin"),
     KspPlanet("Duna"),
-    Constraint(0.1, 2),  # excess velocity
-    Constraint(0, 12 * 31 * (6 * 60 * 60)),  # first maneuver time limit
+    Constraint(0.7, 2.4),  # excess velocity
+    Constraint(6 * (6 * 60 * 60), 12 * 31 * (6 * 60 * 60)),  # first maneuver time limit
     Constraint(0.01, 0.99),  # alpha
     Constraint(flight_period_min, flight_period_max),  # total flight time for arc
     Constraint(0, 1),  # inclination
     Constraint(0, 1),  # declination
 )
+
+
+
+# flight_period_min = 1 * 31 * 6 * 60 * 60
+# flight_period_max = 12 * 31 * 6 * 60 * 60
 #
-flight_period_min = 1 * 31 * 24 * 60 * 60
-flight_period_max = 5 * 12 * 31 * 24 * 60 * 60
+# starting_domain = InitialDomain(
+#     0,
+#     KspPlanet("Kerbin"),
+#     KspPlanet("Duna"),
+#     Constraint(0.1, 2),  # excess velocity
+#     Constraint(0, 12 * 31 * (6 * 60 * 60)),  # first maneuver time limit
+#     Constraint(0.01, 0.99),  # alpha
+#     Constraint(flight_period_min, flight_period_max),  # total flight time for arc
+#     Constraint(0, 1),  # inclination
+#     Constraint(0, 1),  # declination
+# )
 #
-first_flyby_domain = FlybyDomain(
-    0,
-    KspPlanet("Duna"),
-    KspPlanet("Jool"),
-    Constraint(0, 1),
-    Constraint(52 + 320, 3000 + 320),
-    Constraint(0.01, 0.99),
-    Constraint(flight_period_min, flight_period_max),
-)
+
+# flight_period_min = 1 * 31 * 24 * 60 * 60
+# flight_period_max = 5 * 12 * 31 * 24 * 60 * 60
+# first_flyby_domain = FlybyDomain(
+#     0,
+#     KspPlanet("Duna"),
+#     KspPlanet("Jool"),
+#     Constraint(0, 1),
+#     Constraint(52 + 320, 3000 + 320),
+#     Constraint(0.01, 0.99),
+#     Constraint(flight_period_min, flight_period_max),
+# )
 
 if __name__ == "__main__":
-    seq = ManeuversSequence([starting_domain, first_flyby_domain])  # , first_flyby_domain
+    seq = ManeuversSequence([starting_domain])  # , first_flyby_domain
     result = seq.run()
 
     point = min(result, key=lambda x: x.total_delta_v)
@@ -574,7 +607,7 @@ if __name__ == "__main__":
     import dill
 
     # Save the file
-    dill.dump([i.to_dict() for i in result], file=open("result_ksp.pickle", "wb"))
+    dill.dump([i.to_dict() for i in result], file=open("ksp_to_duna.pickle", "wb"))
 
     # Reload the file
     # bounds = [

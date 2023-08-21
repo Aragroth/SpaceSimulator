@@ -27,7 +27,7 @@ Sun = Kerbol
 
 Earth = "Kerbin"
 
-points = dill.load(open("scripts/result_ksp.pickle", "rb"))
+points = dill.load(open("scripts/ksp_to_duna.pickle", "rb"))
 
 points = [
     LastState(i['total_flight_time'], i['total_delta_v'], i['velocity'],
@@ -88,12 +88,16 @@ start_vel = data.v_start * np.array([
 
 departure_planet_state = data.departure_planet.ephemeris_at_time(starting_domain.initial_time, data.launch_time)
 print(departure_planet_state.velocity)
+print("norm of planet:", np.linalg.norm(departure_planet_state.velocity * 1000))
+
 
 spacecraft_state_sun = OrbitStateVector(
     departure_planet_state.radius,
     start_vel + departure_planet_state.velocity,
     mu_sun
 )
+print(start_vel * 1000, departure_planet_state.velocity * 1000)
+print("velocity around sun:", spacecraft_state_sun.velocity * 1000, np.linalg.norm(spacecraft_state_sun.velocity * 1000))
 
 ax.scatter(departure_planet_state.radius[0], departure_planet_state.radius[1], departure_planet_state.radius[2],
            c='blue', marker='o', zorder=30, s=80)
@@ -105,6 +109,17 @@ ax.scatter(0, 0, 0, c='yellow', marker='o', zorder=30, s=200)
 departure_planet_state = KspPlanet(Earth).ephemeris_at_time(starting_domain.initial_time, data.launch_time)
 
 solver = UniversalTimeSolver(spacecraft_state_sun, Planet(Sun))
+
+# fulll traj drawing
+# time = np.linspace(0, 4 * data.flight_period, 500)
+# x, y, z = [], [], []
+# for t in time:
+#     r = solver.state_after(t).radius
+#     x.append(r[0])
+#     y.append(r[1])
+#     z.append(r[2])
+# ax.plot(x, y, z)
+
 time = np.linspace(0, data.alpha * data.flight_period, 500)
 x, y, z = [], [], []
 for t in time:
@@ -149,93 +164,93 @@ print(departure_planet_state.velocity)
 
 v = solver.state_after((1 - data.alpha) * data.flight_period).velocity
 
-
-data = point.points_sequence[1]
-state = point.points_sequence[1]
-
-
-last_state: LastState = LastState(point.points_sequence[0].flight_period + point.points_sequence[0].launch_time, 0, v, None)
-
-flyby_planet_state = state.departure_planet.ephemeris_at_time(
-    state.initial_time, last_state.total_flight_time
-)
-spacecraft_flyby_excess_velocity = last_state.velocity - flyby_planet_state.velocity
-
-u_p = spacecraft_flyby_excess_velocity / np.linalg.norm(spacecraft_flyby_excess_velocity)
-rotation_matrix = FlybyDomain.generate_rotation_matrix(u_p, state.gamma)
-
-n = np.cross(spacecraft_flyby_excess_velocity, flyby_planet_state.velocity)
-n = n / np.linalg.norm(n)
-
-n_trajectory_plane = rotation_matrix @ n
-mu = gravitational_constant * float(state.departure_planet.mass / u.kg) / 1000 ** 3
-
-betta = np.arccos(1 / (1 + state.periapsis * np.linalg.norm(spacecraft_flyby_excess_velocity) ** 2 / mu))
-
-leading_flyby = True
-if np.dot(spacecraft_flyby_excess_velocity, flyby_planet_state.velocity) < 0:
-    leading_flyby = False
-
-turn_angle = 2 * betta
-if leading_flyby:
-    turn_angle *= -1
-
-rotation_matrix = FlybyDomain.generate_rotation_matrix(n_trajectory_plane, turn_angle)
-spacecraft_flyby_excess_velocity = rotation_matrix @ spacecraft_flyby_excess_velocity
-
-spacecraft_departure_velocity = spacecraft_flyby_excess_velocity + flyby_planet_state.velocity
-spacecraft_departure_state = OrbitStateVector(
-    flyby_planet_state.radius,
-    spacecraft_departure_velocity
-)
-
-solver = UniversalTimeSolver(spacecraft_departure_state, Planet(Sun))
-time = np.linspace(0, data.alpha * data.flight_period, 500)
-x, y, z = [], [], []
-for t in time:
-    r = solver.state_after(t).radius
-    x.append(r[0])
-    y.append(r[1])
-    z.append(r[2])
-ax.plot(x, y, z, c='magenta')
-
-mid_state = solver.state_after(state.alpha * state.flight_period)
-
-arrival_planet_state = state.arrival_planet.ephemeris_at_time(
-    state.initial_time, last_state.total_flight_time + state.flight_period
-)
-
-
-problem = LambertProblem(
-    mid_state.radius, arrival_planet_state.radius,
-    (1 - state.alpha) * state.flight_period,
-    mu_sun
-)
-start_state, end_state = problem.solution()
-
-t = ax.text(mid_state.radius[0] + 25_000_000 / 4, mid_state.radius[1], mid_state.radius[2],
-            f'Маневр (delta-v: {np.linalg.norm(start_state.velocity - mid_state.velocity):.2f} km/s)', zdir=None)
-t.set_bbox(dict(facecolor='lightcyan', alpha=0.9, edgecolor='grey'))
-
-ax.scatter(mid_state.radius[0], mid_state.radius[1], mid_state.radius[2], c='black', marker='x', s=30)
-
-solver = UniversalTimeSolver(start_state, Planet(Sun))
-time = np.linspace(0, (1 - state.alpha) * state.flight_period, 500)
-x, y, z = [], [], []
-for t in time:
-    r = solver.state_after(t).radius
-    x.append(r[0])
-    y.append(r[1])
-    z.append(r[2])
-ax.plot(x, y, z, c='magenta')
-
-r_p = data.arrival_planet.ephemeris_at_time(
-    starting_domain.initial_time, last_state.total_flight_time + data.flight_period
-).radius
-
-
-ax.scatter(r_p[0], r_p[1], r_p[2],
-           c='green', marker='o', zorder=30, s=80)
+#
+# data = point.points_sequence[1]
+# state = point.points_sequence[1]
+#
+#
+# last_state: LastState = LastState(point.points_sequence[0].flight_period + point.points_sequence[0].launch_time, 0, v, None)
+#
+# flyby_planet_state = state.departure_planet.ephemeris_at_time(
+#     state.initial_time, last_state.total_flight_time
+# )
+# spacecraft_flyby_excess_velocity = last_state.velocity - flyby_planet_state.velocity
+#
+# u_p = spacecraft_flyby_excess_velocity / np.linalg.norm(spacecraft_flyby_excess_velocity)
+# rotation_matrix = FlybyDomain.generate_rotation_matrix(u_p, state.gamma)
+#
+# n = np.cross(spacecraft_flyby_excess_velocity, flyby_planet_state.velocity)
+# n = n / np.linalg.norm(n)
+#
+# n_trajectory_plane = rotation_matrix @ n
+# mu = gravitational_constant * float(state.departure_planet.mass / u.kg) / 1000 ** 3
+#
+# betta = np.arccos(1 / (1 + state.periapsis * np.linalg.norm(spacecraft_flyby_excess_velocity) ** 2 / mu))
+#
+# leading_flyby = True
+# if np.dot(spacecraft_flyby_excess_velocity, flyby_planet_state.velocity) < 0:
+#     leading_flyby = False
+#
+# turn_angle = 2 * betta
+# if leading_flyby:
+#     turn_angle *= -1
+#
+# rotation_matrix = FlybyDomain.generate_rotation_matrix(n_trajectory_plane, turn_angle)
+# spacecraft_flyby_excess_velocity = rotation_matrix @ spacecraft_flyby_excess_velocity
+#
+# spacecraft_departure_velocity = spacecraft_flyby_excess_velocity + flyby_planet_state.velocity
+# spacecraft_departure_state = OrbitStateVector(
+#     flyby_planet_state.radius,
+#     spacecraft_departure_velocity
+# )
+#
+# solver = UniversalTimeSolver(spacecraft_departure_state, Planet(Sun))
+# time = np.linspace(0, data.alpha * data.flight_period, 500)
+# x, y, z = [], [], []
+# for t in time:
+#     r = solver.state_after(t).radius
+#     x.append(r[0])
+#     y.append(r[1])
+#     z.append(r[2])
+# ax.plot(x, y, z, c='magenta')
+#
+# mid_state = solver.state_after(state.alpha * state.flight_period)
+#
+# arrival_planet_state = state.arrival_planet.ephemeris_at_time(
+#     state.initial_time, last_state.total_flight_time + state.flight_period
+# )
+#
+#
+# problem = LambertProblem(
+#     mid_state.radius, arrival_planet_state.radius,
+#     (1 - state.alpha) * state.flight_period,
+#     mu_sun
+# )
+# start_state, end_state = problem.solution()
+#
+# t = ax.text(mid_state.radius[0] + 25_000_000 / 4, mid_state.radius[1], mid_state.radius[2],
+#             f'Маневр (delta-v: {np.linalg.norm(start_state.velocity - mid_state.velocity):.2f} km/s)', zdir=None)
+# t.set_bbox(dict(facecolor='lightcyan', alpha=0.9, edgecolor='grey'))
+#
+# ax.scatter(mid_state.radius[0], mid_state.radius[1], mid_state.radius[2], c='black', marker='x', s=30)
+#
+# solver = UniversalTimeSolver(start_state, Planet(Sun))
+# time = np.linspace(0, (1 - state.alpha) * state.flight_period, 500)
+# x, y, z = [], [], []
+# for t in time:
+#     r = solver.state_after(t).radius
+#     x.append(r[0])
+#     y.append(r[1])
+#     z.append(r[2])
+# ax.plot(x, y, z, c='magenta')
+#
+# r_p = data.arrival_planet.ephemeris_at_time(
+#     starting_domain.initial_time, last_state.total_flight_time + data.flight_period
+# ).radius
+#
+#
+# ax.scatter(r_p[0], r_p[1], r_p[2],
+#            c='green', marker='o', zorder=30, s=80)
 
 
 
@@ -259,6 +274,7 @@ def planet_trajectory(ax, planet, period):
 planet_trajectory(ax, KspPlanet("Kerbin"), 427)
 planet_trajectory(ax, KspPlanet("Duna"), 802)
 planet_trajectory(ax, KspPlanet("Jool"), 4_846)
+planet_trajectory(ax, KspPlanet("Eve"), 262)
 
 
 ax.set_xlim([-65353911, 65353911])

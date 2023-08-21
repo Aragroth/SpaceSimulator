@@ -12,82 +12,90 @@ from engine.mga import starting_domain, Planet, LastState, FlybyDomain, InitialD
 from engine.state_vector import OrbitStateVector
 from engine.universal_trajectory import UniversalTimeSolver
 
-mu = 3.5316000 * 10 ** 12 / 10 ** 9
-mu_sun = 1.1723328e18 / 10 ** 9  # kerbol
-Sun = Kerbol
 
-Earth = "Kerbin"
+class MGATrajectoryParser:
+    def __init__(self, filename):
+        self.mu = 3.5316000 * 10 ** 12 / 10 ** 9
+        self.mu_sun = 1.1723328e18 / 10 ** 9  # kerbol
+        self.Sun = Kerbol
 
-points = dill.load(open("autopilot/result_ksp.pickle", "rb"))
+        self.Earth = "Kerbin"
 
-points = [
-    LastState(i['total_flight_time'], i['total_delta_v'], i['velocity'],
-              [
-                  InitialDomain.DomainPoint(
-                      x["initial_time"],
-                      KspPlanet(x["departure_planet"]),
-                      KspPlanet(x["arrival_planet"]),
-                      x["v_start"],
-                      x["launch_time"],
-                      x["alpha"],
-                      x["flight_period"],
-                      x["incl"],
-                      x["decl"],
-                  ) if 'incl' in x else
-                  FlybyDomain.DomainPoint(
-                      x["initial_time"],
-                      KspPlanet(x["departure_planet"]),
-                      KspPlanet(x["arrival_planet"]),
-                      x["gamma"],
-                      x["periapsis"],
-                      x["alpha"],
-                      x["flight_period"],
-                  )
-                  for x in i['points_sequence']
-              ]
-              )
-    for i in points
-]
 
-point = min(points, key=lambda x: x.total_delta_v)
+        raw_points = dill.load(open(filename, 'rb'))
+        points = [
+            LastState(i['total_flight_time'], i['total_delta_v'], i['velocity'],
+                      [
+                          InitialDomain.DomainPoint(
+                              x["initial_time"],
+                              KspPlanet(x["departure_planet"]),
+                              KspPlanet(x["arrival_planet"]),
+                              x["v_start"],
+                              x["launch_time"],
+                              x["alpha"],
+                              x["flight_period"],
+                              x["incl"],
+                              x["decl"],
+                          ) if 'incl' in x else
+                          FlybyDomain.DomainPoint(
+                              x["initial_time"],
+                              KspPlanet(x["departure_planet"]),
+                              KspPlanet(x["arrival_planet"]),
+                              x["gamma"],
+                              x["periapsis"],
+                              x["alpha"],
+                              x["flight_period"],
+                          )
+                          for x in i['points_sequence']
+                      ]
+                      )
+            for i in raw_points
+        ]
 
-print(point.points_sequence[0], point.total_delta_v)
-data = point.points_sequence[0]
-print(len(point.points_sequence))
+        self.point = min(points, key=lambda x: x.total_delta_v)
 
-start_vel = data.v_start * np.array([
-    np.cos(data.incl) * np.cos(data.decl),
-    np.sin(data.incl) * np.cos(data.decl),
-    np.sin(data.decl)
-])
+        print(self.point.points_sequence[0], self.point.total_delta_v)
+        print(len(self.point.points_sequence))
 
-departure_planet_state = data.departure_planet.ephemeris_at_time(starting_domain.initial_time, data.launch_time)
-print(departure_planet_state.velocity)
+        self.departure_data = self.point.points_sequence[0]
+        self.excess_velocity = self.departure_data.v_start * np.array([
+            np.cos(self.departure_data.incl) * np.cos(self.departure_data.decl),
+            np.sin(self.departure_data.incl) * np.cos(self.departure_data.decl),
+            np.sin(self.departure_data.decl)
+        ])
 
-spacecraft_state_sun = OrbitStateVector(
-    departure_planet_state.radius,
-    start_vel + departure_planet_state.velocity,
-    mu_sun
-)
+    def departure_arc(self):
+        departure_planet_state = self.departure_data.departure_planet.ephemeris_at_time(
+            starting_domain.initial_time,
+            self.departure_data.launch_time
+        )
+
+        print(departure_planet_state.velocity)
+        spacecraft_state_sun = OrbitStateVector(
+            departure_planet_state.radius,
+            self.excess_velocity + departure_planet_state.velocity,
+            self.mu_sun
+        )
+
+        solver = UniversalTimeSolver(spacecraft_state_sun, Planet(self.Sun))
+
+        self.mid_state = solver.state_after(self.departure_data.alpha * self.departure_data.flight_period)
+
+        departure_planet_state = self.departure_data.arrival_planet.ephemeris_at_time(  # TODO change name because gives fake error
+            starting_domain.initial_time, self.departure_data.launch_time + self.departure_data.flight_period
+        )
+        problem = LambertProblem(self.mid_state.radius, departure_planet_state.radius, (1 - self.departure_data.alpha) * self.departure_data.flight_period,
+                                 self.mu_sun)
+
+        self.start_state, self.end_state = problem.solution()
+
+
 
 
 # sun_eph = Planet(Kerbol).ephemeris_at_time(starting_domain.initial_time, data.launch_time)
 # ax.scatter(sun_eph.radius[0], sun_eph.radius[1], sun_eph.radius[2], c='yellow', marker='o', zorder=30, s=200)
 
-departure_planet_state = KspPlanet(Earth).ephemeris_at_time(starting_domain.initial_time, data.launch_time)
 
-solver = UniversalTimeSolver(spacecraft_state_sun, Planet(Sun))
-time = np.linspace(0, data.alpha * data.flight_period, 500)
-
-mid_state = solver.state_after(data.alpha * data.flight_period)
-
-departure_planet_state = data.arrival_planet.ephemeris_at_time( # TODO change name because gives fake error
-    starting_domain.initial_time, data.launch_time + data.flight_period
-)
-problem = LambertProblem(mid_state.radius, departure_planet_state.radius, (1 - data.alpha) * data.flight_period,
-                         mu_sun)
-
-start_state, end_state = problem.solution()
 
 # solver = UniversalTimeSolver(start_state, Planet(Sun))
 #
