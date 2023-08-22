@@ -3,14 +3,19 @@ import copy
 import krpc
 import numpy as np
 from astropy import units as u
+from poliastro.maneuver import Maneuver
 from poliastro.twobody import Orbit
 from scipy import optimize
 
 from autopilot.calculating import MGATrajectoryParser
 from autopilot.custom_node_executor import execute_next_node
 from autopilot.planets import Kerbin
+from engine.ksp_planet import Kerbol, KspPlanet
+from engine.lambert_problem import LambertProblem
 from engine.mga import FlybyDomain
 from engine.state_vector import OrbitStateVector
+from engine.universal_trajectory import UniversalTimeSolver
+
 
 # https://github.com/Ren0k/Project-Atmospheric-Drag
 
@@ -28,12 +33,16 @@ class AutopilotMGA:
         self.mga_data = mga_trajectory
 
         self.excess_velocity = mga_trajectory.excess_velocity
+        print(np.linalg.norm(self.excess_velocity))
         self.excess_velocity_u = self.excess_velocity / np.linalg.norm(self.excess_velocity)
 
         kerbin_body = self.connection().space_center.bodies['Kerbin']
         self.inertial_frame_kerbin = self.get_inertial_frame(kerbin_body)
 
         self.lines = []  # so lines are not deleted while exist here
+
+        sun_body = self.conn.space_center.bodies['Sun']
+        self.inertial_frame_sun = self.get_inertial_frame(sun_body)
 
     def get_inertial_frame(self, planet):
         rotation_frame = planet.reference_frame
@@ -118,7 +127,7 @@ class AutopilotMGA:
         line1.color = (0.6, 0, 1)
         self.lines.append(line1)
 
-        propagator = self.current_orbit_propagator(self.inertial_frame_kerbin)
+        propagator = self.current_orbit_propagator(Kerbin, self.inertial_frame_kerbin)
 
         def finding_tetta(deg, printing=False):
             r = np.array(propagator.propagate_to_anomaly(deg[0] << u.deg).r / u.km)
@@ -133,16 +142,16 @@ class AutopilotMGA:
 
         return root[0]
 
-    def current_orbit_propagator(self, reference_frame):
+    def current_orbit_propagator(self, planet, reference_frame):
         radius, velocity = self.get_vessel_state(reference_frame)
 
         r = radius << u.km
         v = velocity << u.km / u.s
 
-        return Orbit.from_vectors(Kerbin, r, v)
+        return Orbit.from_vectors(planet, r, v)
 
     def departure_maneuver_nodes(self, multinode=False, multinode_count=3):
-        propagator = self.current_orbit_propagator(self.inertial_frame_kerbin)
+        propagator = self.current_orbit_propagator(Kerbin, self.inertial_frame_kerbin)
 
         at_beginning_of_time = propagator.propagate(
             (self.data.initial_time + self.data.launch_time - self.conn.space_center.ut) << u.s
@@ -167,7 +176,7 @@ class AutopilotMGA:
             self.vessel.control.add_node(maneuver_time_ut, prograde=delta * 1000)
             return
 
-        propagator = self.current_orbit_propagator(self.inertial_frame_kerbin)
+        propagator = self.current_orbit_propagator(Kerbin, self.inertial_frame_kerbin)
         safety_offset_delta = 40 / 1000
         part_delta = ((v_esc - safety_offset_delta - np.linalg.norm(np.array(node_point.v / u.km * u.s)))
                       / multinode_count * 1000)
@@ -180,11 +189,13 @@ class AutopilotMGA:
 
             state = propagator.propagate(prop_time)
 
+            # TODO боже, что это. Достаточно: v / norm(v)
             h = self.get_vessel_h(self.inertial_frame_kerbin)
             prograde = np.cross(h, state.r / u.km)
             prograde_u = prograde / np.linalg.norm(prograde)
 
-            propagator = Orbit.from_vectors(Kerbin, state.r, state.v.to(u.km / u.s) + (prograde_u * part_delta) * u.m / u.s)
+            propagator = Orbit.from_vectors(Kerbin, state.r,
+                                            state.v.to(u.km / u.s) + (prograde_u * part_delta) * u.m / u.s)
             prop_time = propagator.period
             period_i += propagator.period
             propagator = propagator.propagate(propagator.period)
@@ -196,6 +207,68 @@ class AutopilotMGA:
         # line1 = self.conn.drawing.add_direction_from_com(tuple(start_vel_u), self.inertial_frame_kerbin)
         # line1.color = (1.0, 0, 0)
         # self.lines.append(line1)
+
+    def correction_departure_maneuver(self):
+        departure_planet_state = self.data.departure_planet.ephemeris_at_time(
+            self.data.initial_time,
+            self.data.launch_time
+        )
+
+        spacecraft_state_sun = OrbitStateVector(
+            departure_planet_state.radius,
+            self.excess_velocity + departure_planet_state.velocity,
+            self.mga_data.mu_sun
+        )
+
+        propagator_ideal = Orbit.from_vectors(
+            Kerbol,
+            spacecraft_state_sun.radius * u.km,
+            spacecraft_state_sun.velocity * u.km / u.s
+        )
+        propagator_real = self.current_orbit_propagator(Kerbol, self.inertial_frame_sun)
+        print(
+            'inertial around sun:', self.get_vessel_state(self.inertial_frame_sun)
+        )
+
+        propagator_real = self.current_orbit_propagator(Kerbin, self.inertial_frame_kerbin)
+        h = np.linalg.norm(self.get_vessel_h(self.inertial_frame_kerbin))
+        a = h ** 2 / self.mga_data.mu / (propagator_real.ecc.value ** 2 - 1)
+        velocity = np.sqrt(
+            2 * self.mga_data.mu * (1 / 84_159 + 1 / (2 * a))
+        )
+        print(velocity)
+        return
+
+        def cost_function(data: np.array) -> float:
+            maneuver_time_start, maneuver_time_end = data
+            maneuver_time_length = maneuver_time_end - maneuver_time_start
+            if maneuver_time_length < 0:
+                return 10_000
+
+            state_start = propagator_real.propagate(maneuver_time_start * u.s)
+            state_end = propagator_ideal.propagate(maneuver_time_end * u.s)
+
+            try:
+                man = Maneuver.lambert(state_start, state_end)
+                # problem = LambertProblem(
+                #     r_start, r_end,
+                #     maneuver_time_length,
+                #     self.mga_data.mu_sun
+                # )
+                # begin, end = problem.solution()
+            except RuntimeError:
+                return 10_000
+
+            return np.linalg.norm(
+                man[0][1].to(u.km/u.s).value + man[1][1].to(u.km/u.s).value
+            )
+
+        upper_time_start_limit = self.data.alpha / 2 * self.data.flight_period
+        root = optimize.minimize(cost_function, np.array([3.5 * 60 * 60, upper_time_start_limit]), bounds=[
+            (3 * 60 * 60, self.data.alpha / 3 * self.data.flight_period),
+            (self.data.alpha / 3 * self.data.flight_period, self.data.alpha * self.data.flight_period),
+        ]).x
+        print("true anomaly for r_p departure:", root, cost_function(root) * 1000)
 
     def connection(self):
         return self.conn
@@ -210,7 +283,10 @@ pilot = AutopilotMGA(mga_trajectory)
 # input("CONTINUE?..")
 
 # pilot.departure_maneuver_nodes()
-pilot.departure_maneuver_nodes(multinode=True, multinode_count=5)
+# pilot.departure_maneuver_nodes(multinode=True, multinode_count=5)
+# input("CONTINUE?..")
+
+pilot.correction_departure_maneuver()
 input("CONTINUE?..")
 
 exit(0)
@@ -322,48 +398,6 @@ exit(0)
 # -------------------------------------------------------------------------------------------------------
 
 
-# current_planet = conn.space_center.bodies['Sun']
-# kerbin_body = conn.space_center.bodies['Kerbin']
-#
-# angular_velocity = current_planet.angular_velocity(current_planet.non_rotating_reference_frame)
-# v = current_planet.rotation_angle
-#
-# rotation_frame = current_planet.reference_frame
-#
-# inertial_frame_sun = conn.space_center.ReferenceFrame.create_relative(
-#     rotation_frame,
-#     rotation=(0, 1 * np.sin(v / 2), 0, np.cos(v / 2)),  # tuple(rotation.as_quat())
-#     angular_velocity=tuple(-np.array(angular_velocity))
-# )
-#
-# print('real vel: ', np.linalg.norm(np.array(kerbin_body.velocity(inertial_frame_sun))))
-#
-# kerb_vel = np.array(kerbin_body.velocity(inertial_frame_sun))
-# ksp_vec_to_normal(kerb_vel)
-# print(np.array(start_vel) * 1000, kerb_vel, )
-# print(
-#     'вылетная скорость без инерциальной:',
-#     np.array(start_vel) * 1000 + kerb_vel,
-#     np.linalg.norm(np.array(start_vel) * 1000 + kerb_vel)
-# )
-#
-# print(np.linalg.norm(start_vel_u))
-# print(tuple(np.array(start_vel_u) * soi_radius))
-# print(start_vel * 1000)
-#
-# pos = np.array(start_vel_u) * soi_radius
-# ksp_vec_to_normal(pos)
-#
-# vel = start_vel * 1000
-# ksp_vec_to_normal(vel)
-#
-# v = conn.space_center.transform_velocity(
-#     tuple(pos),
-#     tuple(vel),
-#     inertial_frame_kerbin,
-#     inertial_frame_sun
-# )
-#
 # per_v = np.array(v)
 # ksp_vec_to_normal(per_v)
 # print(

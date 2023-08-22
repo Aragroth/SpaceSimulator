@@ -79,7 +79,7 @@ class MGATrajectoryParser:
 
         solver = UniversalTimeSolver(spacecraft_state_sun, Planet(self.Sun))
 
-        self.mid_state = solver.state_after(self.departure_data.alpha * self.departure_data.flight_period)
+        mid_state = solver.state_after(self.departure_data.alpha * self.departure_data.flight_period)
 
         departure_planet_state = self.departure_data.arrival_planet.ephemeris_at_time(  # TODO change name because gives fake error
             starting_domain.initial_time, self.departure_data.launch_time + self.departure_data.flight_period
@@ -87,7 +87,9 @@ class MGATrajectoryParser:
         problem = LambertProblem(self.mid_state.radius, departure_planet_state.radius, (1 - self.departure_data.alpha) * self.departure_data.flight_period,
                                  self.mu_sun)
 
-        self.start_state, self.end_state = problem.solution()
+        start_state, end_state = problem.solution()
+
+        return mid_state, start_state, end_state
 
 
 

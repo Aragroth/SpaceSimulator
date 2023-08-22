@@ -3,7 +3,7 @@ from poliastro.bodies import Body
 
 GM_kerbin = Constant(
     "GM_sun",
-    "kerbol gravitational constant",
+    "kerbin gravitational constant",
     3.5316000 * 10 ** 12,
     "m3 / (s2)",
     0.0000000001e20,
@@ -12,7 +12,7 @@ GM_kerbin = Constant(
 )
 
 R_kerbin = Constant(
-    "R_sun",
+    "R_kerbin",
     "kerbol equatorial radius",
     600_000,
     "m",
@@ -24,7 +24,7 @@ R_kerbin = Constant(
 Kerbin = Body(
     parent=None,
     k=GM_kerbin,
-    name="Kerbol",
+    name="Kerbin",
     symbol="\u2609",
     R=R_kerbin,
 )
