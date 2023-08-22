@@ -547,8 +547,8 @@ class ManeuversSequence:
         return point_in_sphere
 
 
-n_trials_max = 3
-n_max = 30
+n_trials_max = 4
+n_max = 100
 
 
 flight_period_min = 2 * 31 * 6 * 60 * 60
