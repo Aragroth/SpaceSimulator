@@ -6,6 +6,7 @@ from astropy import units as u, time
 from poliastro.maneuver import Maneuver
 from poliastro.twobody import Orbit
 from scipy import optimize
+from scipy.constants import gravitational_constant
 
 from autopilot.calculating import MGATrajectoryParser
 from autopilot.planets import Kerbin
@@ -197,7 +198,8 @@ class AutopilotMGA:
             (
                     self.data.initial_time + self.data.launch_time - time_to_reach_soi.value - self.conn.space_center.ut) << u.s
         )
-        print('at_beg_of_time:', self.data.initial_time + self.data.launch_time - time_to_reach_soi.value - self.conn.space_center.ut)
+        print('at_beg_of_time:',
+              self.data.initial_time + self.data.launch_time - time_to_reach_soi.value - self.conn.space_center.ut)
         till_periapsis = at_beginning_of_time.period / u.s - at_beginning_of_time.t_p / u.s
 
         tetta = pilot.tetta_for_escapment_manuever()
@@ -266,7 +268,7 @@ class AutopilotMGA:
         self.vessel.control.add_node(maneuver_time_ut + period_i.value, prograde=final_delta)
 
     def correction_departure_maneuver(self):
-        print(self.conn.space_center.ut,  self.data.initial_time + self.data.launch_time)
+        print(self.conn.space_center.ut, self.data.initial_time + self.data.launch_time)
 
         propagator_real = self.current_orbit_propagator(Kerbol, self.inertial_frame_sun)
         calculation_started_at_ut = self.conn.space_center.ut
@@ -417,6 +419,151 @@ class AutopilotMGA:
         real_r, real_v = self.get_vessel_state(self.inertial_frame_sun)
         print("реальная", real_v, np.linalg.norm(real_v), "\n", real_r, np.linalg.norm(real_r))
 
+    def flyby_maneuver_alignment(self, periapsis, gamma=0.1):
+        flyby_planet_state = self.data.arrival_planet.ephemeris_at_time(
+            self.data.initial_time, self.data.launch_time + self.data.flight_period
+        )
+        _, _, end_state = self.mga_data.departure_arc()
+
+        spacecraft_flyby_excess_velocity = end_state.velocity - flyby_planet_state.velocity
+
+        u_p = spacecraft_flyby_excess_velocity / np.linalg.norm(spacecraft_flyby_excess_velocity)
+        rotation_matrix = FlybyDomain.generate_rotation_matrix(u_p, gamma)
+
+        n = np.cross(spacecraft_flyby_excess_velocity, flyby_planet_state.velocity)
+        n = n / np.linalg.norm(n)
+
+        n_trajectory_plane = rotation_matrix @ n
+        mu = gravitational_constant * float(self.data.departure_planet.mass / u.kg) / 1000 ** 3
+
+        betta = np.arccos(1 / (1 + periapsis * np.linalg.norm(spacecraft_flyby_excess_velocity) ** 2 / mu))
+
+        leading_flyby = True
+        if np.dot(spacecraft_flyby_excess_velocity, flyby_planet_state.velocity) < 0:
+            leading_flyby = False
+
+        turn_angle = 2 * betta
+        if leading_flyby:
+            turn_angle *= -1
+
+        # ----------------------------------------------------------------------
+
+        propagator_real = self.current_orbit_propagator(Kerbol, self.inertial_frame_sun)
+        calculation_started_at_ut = self.conn.space_center.ut
+
+        departure_planet_state = self.data.departure_planet.ephemeris_at_time(
+            self.data.initial_time, self.data.launch_time
+        )
+        spacecraft_state_sun = OrbitStateVector(
+            departure_planet_state.radius, self.excess_velocity + departure_planet_state.velocity,
+        )
+
+        propagator_ideal = Orbit.from_vectors(
+            Kerbol,
+            spacecraft_state_sun.radius * u.km, spacecraft_state_sun.velocity * u.km / u.s,
+            epoch=time.Time(self.data.initial_time + self.data.launch_time, format='unix')
+        ).propagate((calculation_started_at_ut - self.data.initial_time - self.data.launch_time) * u.s)
+
+        print("идеальная", propagator_ideal.v.value, np.linalg.norm(propagator_ideal.v.value), "\n",
+              propagator_ideal.r.value, np.linalg.norm(propagator_ideal.r.value))
+
+        real_r, real_v = self.get_vessel_state(self.inertial_frame_sun)
+        print("реальная", real_v, np.linalg.norm(real_v), "\n", real_r, np.linalg.norm(real_r))
+
+        def cost_function(data: np.array) -> float:
+            maneuver_start, maneuver_end = data
+            maneuver_time_length = maneuver_end - maneuver_start
+            if maneuver_time_length < 0:
+                return 10_000
+
+            start = propagator_real.propagate(maneuver_start * u.s)
+            end = propagator_ideal.propagate(
+                maneuver_end * u.s
+            )
+            sol = Maneuver.lambert(start, end)
+
+            return np.linalg.norm(sol[0][1].to(u.km / u.s).value) + np.linalg.norm(sol[1][1].to(u.km / u.s).value)
+
+        print('cost_calc')
+        upper_time_start_limit = self.data.alpha / 2 * self.data.flight_period
+        root = optimize.minimize(cost_function, np.array([3.5 * 60 * 60, upper_time_start_limit]), bounds=[
+            (3 * 60, self.data.alpha / 2 * self.data.flight_period),
+            (3 * 60, self.data.alpha / 2 * self.data.flight_period),
+        ], options={'maxiter': 200}).x
+
+        print("true cost for maneuver:", root, cost_function(root) * 1000)
+
+        maneuver_time_start, maneuver_time_end = root
+        state_start = propagator_real.propagate(maneuver_time_start * u.s)
+        state_end = propagator_ideal.propagate(
+            maneuver_time_end * u.s
+        )
+        man = Maneuver.lambert(state_start, state_end)
+
+        # man[1][1].to(u.km / u.s).value
+
+        delta_v_sun = man[0][1].to(u.km / u.s).value
+
+        velocity_u = state_start.v.value / np.linalg.norm(state_start.v.value)
+        h = OrbitStateVector(state_start.r.value, state_start.v.value,
+                             mu=self.mga_data.mu_sun).angular_momentum
+        h_u = h / np.linalg.norm(h)
+        additional = np.cross(velocity_u, h_u)
+
+        q = np.array([
+            velocity_u,
+            h_u,
+            additional
+        ])
+
+        delta_v_velocity_frame = (q @ delta_v_sun) * 1000
+
+        print(delta_v_velocity_frame, np.linalg.norm(delta_v_velocity_frame))
+
+        self.vessel.control.add_node(
+            calculation_started_at_ut + maneuver_time_start,
+            radial=delta_v_velocity_frame[2], prograde=delta_v_velocity_frame[0], normal=delta_v_velocity_frame[1]
+        )
+
+        # second correction:
+        correction_state = Orbit.from_vectors(Kerbol, state_start.r, state_start.v + man[0][1])
+        mid_state = correction_state.propagate(
+            (maneuver_time_end - maneuver_time_start) * u.s
+        )
+
+        delta_v_sun = man[1][1].to(u.km / u.s).value
+
+        velocity_u = mid_state.v.value / np.linalg.norm(mid_state.v.value)
+        h = OrbitStateVector(mid_state.r.value, mid_state.v.value,
+                             mu=self.mga_data.mu_sun).angular_momentum
+        h_u = h / np.linalg.norm(h)
+        additional = np.cross(velocity_u, h_u)
+
+        q = np.array([
+            velocity_u,
+            h_u,
+            additional
+        ])
+
+        delta_v_velocity_frame = (q @ delta_v_sun) * 1000
+
+        print(delta_v_velocity_frame, np.linalg.norm(delta_v_velocity_frame))
+
+        self.vessel.control.add_node(
+            calculation_started_at_ut + maneuver_time_end,
+            radial=delta_v_velocity_frame[2], prograde=delta_v_velocity_frame[0], normal=delta_v_velocity_frame[1]
+        )
+
+
+        # -----------------------------------------------------------------------
+
+
+
+
+
+        v_p_hyp = np.sqrt(np.linalg.norm(spacecraft_flyby_excess_velocity) ** 2 + 2 * mu / periapsis)
+        delta_v = v_p_hyp - np.sqrt(mu / periapsis)
+        return delta_v
 
     def connection(self):
         return self.conn
@@ -437,7 +584,10 @@ pilot = AutopilotMGA(mga_trajectory)
 # pilot.correction_departure_maneuver()
 # input("CONTINUE?..")
 
-pilot.mid_arc_manuever()
+# pilot.mid_arc_manuever()
+# input("CONTINUE?..")
+
+pilot.flyby_maneuver_alignment(320 + 200, 0.1)
 input("CONTINUE?..")
 
 exit(0)
