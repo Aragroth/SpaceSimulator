@@ -326,6 +326,9 @@ class FlybyDomain:
 
         betta = np.arccos(1 / (1 + state.periapsis * np.linalg.norm(spacecraft_flyby_excess_velocity) ** 2 / mu))
 
+        # TODO add ability to choose beta for braking betta version instead of boosting (или написал фигню?)
+        # TODO неправильное определение того, каким будет пролёт. Всё зависит от того, относительно какой половины сферы
+        # планеты будет находиться аппарат (???!!)
         leading_flyby = True
         if np.dot(spacecraft_flyby_excess_velocity, flyby_planet_state.velocity) < 0:
             leading_flyby = False
