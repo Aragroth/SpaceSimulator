@@ -1,0 +1,1 @@
+from .ksp_astropy import Kerbin, Duna, Kerbol

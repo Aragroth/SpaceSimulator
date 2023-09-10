@@ -23,7 +23,7 @@ class FlybyDomain:
         self.periapsis_constraint = periapsis_c
         self.alpha_constraint = alpha_c
         self.flight_period_constraint = flight_period_c
-        self.const_function = cost_function
+        self.cost_function = cost_function
 
     class DomainPoint:
         def __init__(

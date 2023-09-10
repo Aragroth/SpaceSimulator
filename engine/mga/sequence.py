@@ -129,8 +129,8 @@ class LastState:
             'points_sequence': [
                 {
                     "initial_time": point.initial_time,
-                    "departure_planet": point.departure_planet.astropy_planet,
-                    "arrival_planet": point.arrival_planet.astropy_planet,
+                    "departure_planet": point.departure_planet.to_json(),
+                    "arrival_planet": point.arrival_planet.to_json(),
 
                     "v_start": point.v_start,
                     "launch_time": point.launch_time,
@@ -142,8 +142,8 @@ class LastState:
                 if isinstance(point, InitialDomain.DomainPoint) else
                 {
                     "initial_time": point.initial_time,
-                    "departure_planet": point.departure_planet.planet,
-                    "arrival_planet": point.arrival_planet.planet,
+                    "departure_planet": point.departure_planet.planet.to_json(),
+                    "arrival_planet": point.arrival_planet.planet.to_json(),
                     "gamma": point.gamma,
                     "periapsis": point.periapsis,
                     "alpha": point.alpha,

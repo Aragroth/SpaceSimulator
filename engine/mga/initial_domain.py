@@ -3,13 +3,14 @@ from __future__ import annotations
 import numpy as np
 from numpy import random
 
+from engine.planets.abstract import AbstractPlanet
 from engine.planets.solar import SolarPlanet
 from engine.utils import Constraint
 
 
 class InitialDomain:
     def __init__(
-            self, initial_time, departure_planet: SolarPlanet, arrival_planet: SolarPlanet,
+            self, initial_time, departure_planet: AbstractPlanet, arrival_planet: AbstractPlanet,
             v_start_c: Constraint, launch_time_c: Constraint, alpha_c: Constraint, flight_period_c: Constraint,
             inclination_c: Constraint, declination_c: Constraint, cost_function
     ):

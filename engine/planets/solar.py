@@ -6,8 +6,9 @@ from astropy import units as u
 from astropy.time import Time
 from poliastro.bodies import Body
 from poliastro.ephem import Ephem
+from scipy.constants import gravitational_constant
 
-from abstract import AbstractPlanet
+from .abstract import AbstractPlanet
 from engine.state_vector import StateVector
 
 
@@ -29,8 +30,6 @@ class SolarPlanet(AbstractPlanet):
             r = np.array(position[0])
             v = np.array(speed[0])
 
-        return StateVector(r, v, self.astropy_planet)
+        return StateVector(r, v, self)
 
-    @property
-    def mu(self) -> float:
-        return self.astropy_planet.mu
+

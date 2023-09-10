@@ -11,6 +11,7 @@ class LambertProblem:
         self.r2 = r2
         self.time_seconds = time_seconds
         self.mu = planet.mu
+        self.planet = planet
         self.is_prograde = is_prograde
 
     def solution(self) -> Tuple[StateVector, StateVector]:
@@ -25,7 +26,7 @@ class LambertProblem:
         v1 = 1 / self.g * (self.r2 - self.f * self.r1)
         v2 = 1 / self.g * (self.g_dot * self.r2 - self.r1)
 
-        return StateVector(self.r1, v1, self.mu), StateVector(self.r2, v2, self.mu)
+        return StateVector(self.r1, v1, self.planet), StateVector(self.r2, v2, self.planet)
 
     def calculate_lagrange(self):
         F, F_dot = self.get_optimize_function()

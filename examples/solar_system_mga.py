@@ -181,7 +181,7 @@ first_flyby_domain = FlybyDomain(
 )
 
 if __name__ == "__main__":
-    seq = ManeuversSequence([starting_domain, first_flyby_domain])
+    seq = ManeuversSequence([starting_domain, first_flyby_domain], 4, 10)
     result = seq.run()
 
     import dill

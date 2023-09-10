@@ -8,13 +8,13 @@ class StateVector:
 
         self.mu = planet.mu
 
-        self.angular_momentum = self.calculate_angular_momentum()
-        self.inclination = self.calculate_inclination()
-        self.node = self.calculate_node()
-        self.right_ascension = self.calculate_right_ascension()
-        self.eccentricity = self.calculate_eccentricity()
-        self.argument_of_perigee = self.calculate_argument_of_perigee()
-        self.true_anomaly = self.calculate_true_anomaly()
+        # self.angular_momentum = self.calculate_angular_momentum()
+        # self.inclination = self.calculate_inclination()
+        # self.node = self.calculate_node()
+        # self.right_ascension = self.calculate_right_ascension()
+        # self.eccentricity = self.calculate_eccentricity()
+        # self.argument_of_perigee = self.calculate_argument_of_perigee()
+        # self.true_anomaly = self.calculate_true_anomaly()
 
     def calculate_angular_momentum(self):
         return np.cross(self.radius, self.velocity)
@@ -49,6 +49,10 @@ class StateVector:
         if self.eccentricity_module == 0:
             return 0
 
+        print(
+            self.eccentricity @ self.radius /
+            (self.eccentricity_module * self.radius_module)
+        )
         res = np.arccos(self.eccentricity @ self.radius /
                         (self.eccentricity_module * self.radius_module))
         return res if self.radial_velocity >= 0 else (2 * np.pi - res)
