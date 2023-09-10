@@ -2,15 +2,16 @@
 # points = np.load(f)
 import dill
 import numpy as np
-from astropy import units as u
-from matplotlib import pyplot as plt
-from scipy.constants import gravitational_constant
 
-from engine.ksp_planet import Kerbol, KspPlanet
-from engine.lambert_problem import LambertProblem
-from engine.mga import starting_domain, Planet, LastState, FlybyDomain, InitialDomain
-from engine.state_vector import OrbitStateVector
-from engine.universal_trajectory import UniversalTimeSolver
+from engine.planets.ksp import Kerbol, KspPlanet
+from engine.lambert.custom import LambertProblem
+from engine.mga import starting_domain
+from engine.mga.sequence import LastState
+from engine.mga.flyby_domain import FlybyDomain
+from engine.mga.initial_domain import InitialDomain
+from engine.planets.solar import SolarPlanet
+from engine.state_vector import StateVector
+from engine.propagator.universal import UniversalPropagator
 
 
 class MGATrajectoryParser:
@@ -71,13 +72,13 @@ class MGATrajectoryParser:
         )
 
         print(departure_planet_state.velocity)
-        spacecraft_state_sun = OrbitStateVector(
+        spacecraft_state_sun = StateVector(
             departure_planet_state.radius,
             self.excess_velocity + departure_planet_state.velocity,
             self.mu_sun
         )
 
-        solver = UniversalTimeSolver(spacecraft_state_sun, Planet(self.Sun))
+        solver = UniversalPropagator(spacecraft_state_sun, SolarPlanet(self.Sun))
 
         mid_state = solver.state_after(self.departure_data.alpha * self.departure_data.flight_period)
 

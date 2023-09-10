@@ -3,18 +3,17 @@ import copy
 import krpc
 import numpy as np
 from astropy import units as u, time
-from matplotlib import pyplot as plt
 from poliastro.maneuver import Maneuver
 from poliastro.twobody import Orbit
 from scipy import optimize
 from scipy.constants import gravitational_constant
 
 from autopilot.calculating import MGATrajectoryParser
-from autopilot.custom_node_executor import execute_next_node, execute_all_nodes
+from autopilot.custom_node_executor import execute_all_nodes
 from autopilot.planets import Kerbin, Duna
-from engine.ksp_planet import Kerbol
-from engine.mga import FlybyDomain
-from engine.state_vector import OrbitStateVector
+from engine.planets.ksp import Kerbol
+from engine.mga.flyby_domain import FlybyDomain
+from engine.state_vector import StateVector
 
 
 # https://github.com/Ren0k/Project-Atmospheric-Drag
@@ -278,7 +277,7 @@ class AutopilotMGA:
         departure_planet_state = self.data.departure_planet.ephemeris_at_time(
             self.data.initial_time, self.data.launch_time
         )
-        spacecraft_state_sun = OrbitStateVector(
+        spacecraft_state_sun = StateVector(
             departure_planet_state.radius, self.excess_velocity + departure_planet_state.velocity,
         )
 
@@ -329,8 +328,8 @@ class AutopilotMGA:
         delta_v_sun = man[0][1].to(u.km / u.s).value
 
         velocity_u = state_start.v.value / np.linalg.norm(state_start.v.value)
-        h = OrbitStateVector(state_start.r.value, state_start.v.value,
-                             mu=self.mga_data.mu_sun).angular_momentum
+        h = StateVector(state_start.r.value, state_start.v.value,
+                        mu=self.mga_data.mu_sun).angular_momentum
         h_u = h / np.linalg.norm(h)
         additional = np.cross(velocity_u, h_u)
 
@@ -358,8 +357,8 @@ class AutopilotMGA:
         delta_v_sun = man[1][1].to(u.km / u.s).value
 
         velocity_u = mid_state.v.value / np.linalg.norm(mid_state.v.value)
-        h = OrbitStateVector(mid_state.r.value, mid_state.v.value,
-                             mu=self.mga_data.mu_sun).angular_momentum
+        h = StateVector(mid_state.r.value, mid_state.v.value,
+                        mu=self.mga_data.mu_sun).angular_momentum
         h_u = h / np.linalg.norm(h)
         additional = np.cross(velocity_u, h_u)
 
@@ -391,8 +390,8 @@ class AutopilotMGA:
         delta_v_sun = start_state.velocity - mid_state.velocity
 
         velocity_u = mid_state.velocity / np.linalg.norm(mid_state.velocity)
-        h = OrbitStateVector(mid_state.radius, mid_state.velocity,
-                             mu=self.mga_data.mu_sun).angular_momentum
+        h = StateVector(mid_state.radius, mid_state.velocity,
+                        mu=self.mga_data.mu_sun).angular_momentum
         h_u = h / np.linalg.norm(h)
         additional = np.cross(velocity_u, h_u)
 
@@ -521,8 +520,8 @@ class AutopilotMGA:
         delta_v_sun = man[0][1].to(u.km / u.s).value
 
         velocity_u = state_start.v.value / np.linalg.norm(state_start.v.value)
-        h = OrbitStateVector(state_start.r.value, state_start.v.value,
-                             mu=self.mga_data.mu_sun).angular_momentum
+        h = StateVector(state_start.r.value, state_start.v.value,
+                        mu=self.mga_data.mu_sun).angular_momentum
         h_u = h / np.linalg.norm(h)
         additional = np.cross(velocity_u, h_u)
 
@@ -550,8 +549,8 @@ class AutopilotMGA:
         delta_v_sun = man[1][1].to(u.km / u.s).value
 
         velocity_u = mid_state.v.value / np.linalg.norm(mid_state.v.value)
-        h = OrbitStateVector(mid_state.r.value, mid_state.v.value,
-                             mu=self.mga_data.mu_sun).angular_momentum
+        h = StateVector(mid_state.r.value, mid_state.v.value,
+                        mu=self.mga_data.mu_sun).angular_momentum
         h_u = h / np.linalg.norm(h)
         additional = np.cross(velocity_u, h_u)
 

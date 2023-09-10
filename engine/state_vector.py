@@ -1,21 +1,20 @@
 import numpy as np
 
 
-# Ошибка, где-то не работает # TODO
-class OrbitStateVector:
-    def __init__(self, r, v, mu = 398_600):
+class StateVector:
+    def __init__(self, r, v, planet):
         self.radius = np.array(r)
         self.velocity = np.array(v)
 
-        self.mu = mu
+        self.mu = planet.mu
 
         self.angular_momentum = self.calculate_angular_momentum()
         self.inclination = self.calculate_inclination()
         self.node = self.calculate_node()
-        self.right_ascention = self.calculate_right_ascention()
+        self.right_ascension = self.calculate_right_ascension()
         self.eccentricity = self.calculate_eccentricity()
         self.argument_of_perigee = self.calculate_argument_of_perigee()
-        self.true_anomaly = self.calculate_true_anomaly() # ----------- error if e = 0 #TODO
+        self.true_anomaly = self.calculate_true_anomaly()
 
     def calculate_angular_momentum(self):
         return np.cross(self.radius, self.velocity)
@@ -26,7 +25,7 @@ class OrbitStateVector:
     def calculate_node(self):
         return np.cross([0, 0, 1], self.angular_momentum)
 
-    def calculate_right_ascention(self):
+    def calculate_right_ascension(self):
         if self.node_module == 0:
             return 0
 
@@ -47,7 +46,8 @@ class OrbitStateVector:
         return res if self.eccentricity[2] >= 0 else (2 * np.pi - res)
 
     def calculate_true_anomaly(self):
-        if (self.eccentricity_module == 0): return 0
+        if self.eccentricity_module == 0:
+            return 0
 
         res = np.arccos(self.eccentricity @ self.radius /
                         (self.eccentricity_module * self.radius_module))

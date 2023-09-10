@@ -2,18 +2,18 @@ import numpy as np
 from scipy import optimize
 
 from typing import Tuple
-from engine.state_vector import OrbitStateVector
+from engine.state_vector import StateVector
 
 
 class LambertProblem:
-    def __init__(self, r1: np.array, r2: np.array, time_seconds: float, mu: float, is_prograde: bool = True):
+    def __init__(self, r1: np.array, r2: np.array, time_seconds: float, planet, is_prograde: bool = True):
         self.r1 = r1
         self.r2 = r2
         self.time_seconds = time_seconds
-        self.mu = mu
+        self.mu = planet.mu
         self.is_prograde = is_prograde
 
-    def solution(self) -> Tuple[OrbitStateVector, OrbitStateVector]:
+    def solution(self) -> Tuple[StateVector, StateVector]:
         self.r1_module = np.linalg.norm(self.r1)
         self.r2_module = np.linalg.norm(self.r2)
 
@@ -25,7 +25,7 @@ class LambertProblem:
         v1 = 1 / self.g * (self.r2 - self.f * self.r1)
         v2 = 1 / self.g * (self.g_dot * self.r2 - self.r1)
 
-        return (OrbitStateVector(self.r1, v1, self.mu), OrbitStateVector(self.r2, v2, self.mu))
+        return StateVector(self.r1, v1, self.mu), StateVector(self.r2, v2, self.mu)
 
     def calculate_lagrange(self):
         F, F_dot = self.get_optimize_function()

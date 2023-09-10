@@ -31,9 +31,6 @@ Kerbin = Body(
 
 
 
-
-
-
 GM_duna = Constant(
     "GM_duna",
     "duna gravitational constant",

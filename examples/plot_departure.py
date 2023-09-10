@@ -2,17 +2,17 @@
 # points = np.load(f)
 import dill
 import numpy as np
-from astropy.time import Time
 from matplotlib import pyplot as plt
-from poliastro.bodies import Earth, Mars, Sun, Venus
-from scipy.constants import gravitational_constant
-from astropy import units as u
 
-from engine.ksp_planet import Kerbol, KspPlanet
-from engine.lambert_problem import LambertProblem
-from engine.mga import mu_sun, starting_domain, Planet, LastState, FlybyDomain, InitialDomain
-from engine.state_vector import OrbitStateVector
-from engine.universal_trajectory import UniversalTimeSolver
+from engine.planets.ksp import Kerbol, KspPlanet
+from engine.lambert.custom import LambertProblem
+from engine.mga import starting_domain
+from engine.mga.sequence import LastState
+from engine.mga.flyby_domain import FlybyDomain
+from engine.mga.initial_domain import InitialDomain
+from engine.planets.solar import SolarPlanet
+from engine.state_vector import StateVector
+from engine.propagator.universal import UniversalPropagator
 
 
 
@@ -91,7 +91,7 @@ print(departure_planet_state.velocity)
 print("norm of planet:", np.linalg.norm(departure_planet_state.velocity * 1000))
 
 
-spacecraft_state_sun = OrbitStateVector(
+spacecraft_state_sun = StateVector(
     departure_planet_state.radius,
     start_vel + departure_planet_state.velocity,
     mu_sun
@@ -108,7 +108,7 @@ ax.scatter(0, 0, 0, c='yellow', marker='o', zorder=30, s=200)
 
 departure_planet_state = KspPlanet(Earth).ephemeris_at_time(starting_domain.initial_time, data.launch_time)
 
-solver = UniversalTimeSolver(spacecraft_state_sun, Planet(Sun))
+solver = UniversalPropagator(spacecraft_state_sun, SolarPlanet(Sun))
 
 # fulll traj drawing
 # time = np.linspace(0, 4 * data.flight_period, 500)
@@ -145,7 +145,7 @@ print("----- norm: ", np.linalg.norm(start_state.velocity - mid_state.velocity))
 t.set_bbox(dict(facecolor='lightcyan', alpha=0.9, edgecolor='grey'))
 
 print(start_state.eccentricity_module)
-solver = UniversalTimeSolver(start_state, Planet(Sun))
+solver = UniversalPropagator(start_state, SolarPlanet(Sun))
 time = np.linspace(0, (1 - data.alpha) * data.flight_period, 200)
 for t in time:
     r = solver.state_after(t).radius
