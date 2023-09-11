@@ -3,15 +3,15 @@
 import dill
 import numpy as np
 
-from engine.planets.ksp import Kerbol, KspPlanet
 from engine.lambert.custom import LambertProblem
 from engine.mga import starting_domain
-from engine.mga.sequence import LastState
 from engine.mga.flyby_domain import FlybyDomain
 from engine.mga.initial_domain import InitialDomain
+from engine.mga.sequence import LastState
+from engine.planets.ksp import Kerbol, KspPlanet
 from engine.planets.solar import SolarPlanet
-from engine.state_vector import StateVector
 from engine.propagator.universal import UniversalPropagator
+from engine.state_vector import StateVector
 
 
 class MGATrajectoryParser:
@@ -21,7 +21,6 @@ class MGATrajectoryParser:
         self.Sun = Kerbol
 
         self.Earth = "Kerbin"
-
 
         raw_points = dill.load(open(filename, 'rb'))
         points = [
@@ -82,22 +81,20 @@ class MGATrajectoryParser:
 
         mid_state = solver.state_after(self.departure_data.alpha * self.departure_data.flight_period)
 
-        departure_planet_state = self.departure_data.arrival_planet.ephemeris_at_time(  # TODO change name because gives fake error
+        departure_planet_state = self.departure_data.arrival_planet.ephemeris_at_time(
+            # TODO change name because gives fake error
             starting_domain.initial_time, self.departure_data.launch_time + self.departure_data.flight_period
         )
-        problem = LambertProblem(mid_state.radius, departure_planet_state.radius, (1 - self.departure_data.alpha) * self.departure_data.flight_period,
+        problem = LambertProblem(mid_state.radius, departure_planet_state.radius,
+                                 (1 - self.departure_data.alpha) * self.departure_data.flight_period,
                                  self.mu_sun)
 
         start_state, end_state = problem.solution()
 
         return mid_state, start_state, end_state
 
-
-
-
 # sun_eph = Planet(Kerbol).ephemeris_at_time(starting_domain.initial_time, data.launch_time)
 # ax.scatter(sun_eph.radius[0], sun_eph.radius[1], sun_eph.radius[2], c='yellow', marker='o', zorder=30, s=200)
-
 
 
 # solver = UniversalTimeSolver(start_state, Planet(Sun))
