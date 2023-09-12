@@ -1,11 +1,13 @@
-import krpc
 import math
 import time
+
+import krpc
 
 
 def main():
     conn = krpc.connect()
     execute_btn(conn)
+
 
 def execute_next_node(conn):
     space_center = conn.space_center
@@ -80,4 +82,3 @@ def execute_btn(conn):
         if button_clicked():
             execute_next_node(conn)
             button.clicked = False
-

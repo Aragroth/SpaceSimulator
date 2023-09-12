@@ -153,8 +153,8 @@ def cost_function_flyby(domain: np.array, *args, **kwargs) -> int | tuple[Any, f
     return delta_v
 
 
-flight_period_min = 2 * 31 * 24 * 60 * 60
-flight_period_max = 8 * 31 * 24 * 60 * 60
+flight_period_min = 7 * 31 * 24 * 60 * 60
+flight_period_max = 18 * 31 * 24 * 60 * 60
 
 # TODO make this as field in json data
 initial_time = Time("2023-07-30 12:00")
@@ -163,17 +163,17 @@ starting_domain = InitialDomain(
     initial_time,
     SolarPlanet(Earth),
     SolarPlanet(Venus),
-    Constraint(7, 12),  # excess velocity
-    Constraint(0, 12 * 31 * (24 * 60 * 60)),  # first maneuver time limit
-    Constraint(0.01, 0.99),  # alpha
+    Constraint(2, 4),  # excess velocity
+    Constraint(0, 16 * 31 * (24 * 60 * 60)),  # first maneuver time limit
+    Constraint(0.15, 0.8),  # alpha
     Constraint(flight_period_min, flight_period_max),  # total flight time for arc
     Constraint(0, 1),  # inclination
     Constraint(0, 1),  # declination
     cost_function_initial,
 )
 
-flight_period_min = 4 * 31 * 24 * 60 * 60
-flight_period_max = 9 * 31 * 24 * 60 * 60
+flight_period_min = 8 * 31 * 24 * 60 * 60
+flight_period_max = 18 * 31 * 24 * 60 * 60
 
 first_flyby_domain = FlybyDomain(
     initial_time,
@@ -181,13 +181,13 @@ first_flyby_domain = FlybyDomain(
     SolarPlanet(Mars),
     Constraint(0, 1),
     Constraint(400 + 6_051, 2500 + 6_051),
-    Constraint(0.01, 0.99),
+    Constraint(0.15, 0.8),
     Constraint(flight_period_min, flight_period_max),
     cost_function_flyby,
 )
 
 if __name__ == "__main__":
-    seq = ManeuversSequence([starting_domain, first_flyby_domain], 5, 40)
+    seq = ManeuversSequence([starting_domain, first_flyby_domain], 6, 1_000)
     result = seq.run()
 
     point = min(result, key=lambda x: x.total_delta_v)

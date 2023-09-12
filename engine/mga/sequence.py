@@ -51,7 +51,7 @@ class ManeuversSequence:
                 if n_trials > self.n_trials_max:
                     break
 
-                if domain.cost_function(x_candidate, *meta, prev_point_state) < 20:
+                if domain.cost_function(x_candidate, *meta, prev_point_state) < 30:
                     p = domain.create_point(x_candidate)
                     velocity, delta_v = domain.cost_function(x_candidate, *meta, prev_point_state,
                                                              last_state_generation=True)
@@ -74,7 +74,7 @@ class ManeuversSequence:
                         n_trials = 0
 
                     x_local_minimum = x_local_minimum_new
-                    if domain.cost_function(x_local_minimum_new, *meta, prev_point_state) < 20:
+                    if domain.cost_function(x_local_minimum_new, *meta, prev_point_state) < 30:
                         p = domain.create_point(x_local_minimum_new)
                         velocity, delta_v = domain.cost_function(x_local_minimum_new, *meta, prev_point_state,
                                                                  last_state_generation=True)
