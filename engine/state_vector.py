@@ -8,6 +8,7 @@ class StateVector:
 
         self.mu = planet.mu
 
+        # TODO make them use when needed
         # self.angular_momentum = self.calculate_angular_momentum()
         # self.inclination = self.calculate_inclination()
         # self.node = self.calculate_node()

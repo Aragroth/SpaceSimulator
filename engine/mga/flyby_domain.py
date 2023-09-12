@@ -4,7 +4,7 @@ import numpy as np
 from numpy import random
 
 from engine.planets.solar import SolarPlanet
-from engine.utils import Constraint
+from engine.mga.constraint import Constraint
 
 
 class FlybyDomain:

@@ -12,6 +12,10 @@ class AbstractPlanet(ABC):
     def __init__(self, astropy_planet):
         self.astropy_planet = astropy_planet
 
+    @classmethod
+    def from_json(cls, planet_name):
+        pass
+
     @abstractmethod
     def ephemeris_at_time(
             self, initial_time: Time, delta_time: float, astropy_planet=True

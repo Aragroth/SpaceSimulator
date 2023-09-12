@@ -4,7 +4,7 @@ import astropy
 import numpy as np
 from astropy import units as u
 from astropy.time import Time
-from poliastro.bodies import Body
+from poliastro.bodies import Body, Sun, Earth, Mars, Venus
 from poliastro.ephem import Ephem
 from scipy.constants import gravitational_constant
 
@@ -32,4 +32,12 @@ class SolarPlanet(AbstractPlanet):
 
         return StateVector(r, v, self)
 
+    @classmethod
+    def from_json(cls, planet_name):
+        match planet_name:
+            case 'Sun': return cls(Sun)
+            case 'Earth': return cls(Earth)
+            case 'Mars': return cls(Mars)
+            case 'Venus': return cls(Venus)
 
+        raise RuntimeError("Planet not found")

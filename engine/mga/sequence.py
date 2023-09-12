@@ -142,8 +142,8 @@ class LastState:
                 if isinstance(point, InitialDomain.DomainPoint) else
                 {
                     "initial_time": point.initial_time,
-                    "departure_planet": point.departure_planet.planet.to_json(),
-                    "arrival_planet": point.arrival_planet.planet.to_json(),
+                    "departure_planet": point.departure_planet.to_json(),
+                    "arrival_planet": point.arrival_planet.to_json(),
                     "gamma": point.gamma,
                     "periapsis": point.periapsis,
                     "alpha": point.alpha,

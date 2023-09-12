@@ -9,7 +9,7 @@ from engine.planets.ksp import KspPlanet
 from engine.planets.solar import SolarPlanet
 from engine.propagator.universal import UniversalPropagator
 from engine.state_vector import StateVector
-from engine.utils import Constraint
+from engine.mga.constraint import Constraint
 
 
 def cost_function_initial(domain: np.array, *args, **kwargs) -> float | tuple:

@@ -5,13 +5,16 @@ from astropy import units as u
 from astropy.time import Time
 from poliastro.bodies import Earth, Venus, Mars, Sun
 from scipy.constants import gravitational_constant
+import dill
+
 
 from engine.lambert.custom import LambertProblem
 from engine.mga import FlybyDomain, InitialDomain, ManeuversSequence, LastState
 from engine.planets.solar import SolarPlanet
 from engine.propagator.universal import UniversalPropagator
 from engine.state_vector import StateVector
-from engine.utils import Constraint, generate_rotation_matrix
+from engine.utils import generate_rotation_matrix
+from engine.mga.constraint import Constraint
 
 
 # --- cost for last planet -----------------
@@ -151,14 +154,17 @@ def cost_function_flyby(domain: np.array, *args, **kwargs) -> int | tuple[Any, f
 
 
 flight_period_min = 2 * 31 * 24 * 60 * 60
-flight_period_max = 10 * 31 * 24 * 60 * 60
+flight_period_max = 8 * 31 * 24 * 60 * 60
+
+# TODO make this as field in json data
+initial_time = Time("2023-07-30 12:00")
 
 starting_domain = InitialDomain(
-    Time("2023-07-30 12:00"),
+    initial_time,
     SolarPlanet(Earth),
     SolarPlanet(Venus),
-    Constraint(3, 8),  # excess velocity
-    Constraint(0, 24 * 31 * (24 * 60 * 60)),  # first maneuver time limit
+    Constraint(7, 12),  # excess velocity
+    Constraint(0, 12 * 31 * (24 * 60 * 60)),  # first maneuver time limit
     Constraint(0.01, 0.99),  # alpha
     Constraint(flight_period_min, flight_period_max),  # total flight time for arc
     Constraint(0, 1),  # inclination
@@ -166,11 +172,11 @@ starting_domain = InitialDomain(
     cost_function_initial,
 )
 
-flight_period_min = 6 * 31 * 24 * 60 * 60
-flight_period_max = 20 * 31 * 24 * 60 * 60
+flight_period_min = 4 * 31 * 24 * 60 * 60
+flight_period_max = 9 * 31 * 24 * 60 * 60
 
 first_flyby_domain = FlybyDomain(
-    Time("2023-07-30 12:00"),
+    initial_time,
     SolarPlanet(Venus),
     SolarPlanet(Mars),
     Constraint(0, 1),
@@ -181,10 +187,15 @@ first_flyby_domain = FlybyDomain(
 )
 
 if __name__ == "__main__":
-    seq = ManeuversSequence([starting_domain, first_flyby_domain], 4, 10)
+    seq = ManeuversSequence([starting_domain, first_flyby_domain], 5, 40)
     result = seq.run()
 
-    import dill
+    point = min(result, key=lambda x: x.total_delta_v)
 
-    # Save the file
-    dill.dump(result, file=open("result.pickle", "wb"))
+    print('total delta-v required:', point.total_delta_v)
+
+    dill.dump(
+        [i.to_dict() for i in result],
+        file=open("data_simulations/solar_mga.pickle", "wb")
+    )
+
